@@ -1,0 +1,19 @@
+[tool.poetry]
+name = "oxocardendpoint"
+version = "0.1.0"
+description = ""
+authors = ["Disruptor <disruptor@disrupt.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+sqlalchemy = "^2.0.31"
+fastapi = "^0.111.1"
+
+
+[tool.poetry.group.dev.dependencies]
+ruff = "^0.5.4"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

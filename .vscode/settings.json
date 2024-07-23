@@ -1,0 +1,17 @@
+{
+    "[python]": {
+        "editor.formatOnSave": true,
+        "editor.codeActionsOnSave": {
+            "source.organizeImports": "always"
+        },
+        "editor.defaultFormatter": "charliermarsh.ruff",
+        "diffEditor.ignoreTrimWhitespace": false,
+        "editor.wordBasedSuggestions": "off"
+    },
+    "python.analysis.packageIndexDepths": [
+        [
+            "",
+            2
+        ]
+    ]
+}

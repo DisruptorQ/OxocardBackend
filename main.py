@@ -1,31 +1,19 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
-from oxocardendpoint.database import create_schema, new_session
-from oxocardendpoint.entities.sensor import Sensor
-from oxocardendpoint.services.sensor_service import SensorService
+from oxocardendpoint.controllers import sensor_controller
+from oxocardendpoint.database import create_schema
 
 create_schema()
 
-new_sensor = Sensor()
-new_sensor.name = "Test"
-
-session = new_session()
-
-session.add(new_sensor)
-session.commit()
-
+origins = ["http://localhost:4200"]
 
 app = FastAPI()
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-
-@app.get("/")
-async def hello_world():
-    return "{'Test': 'Hello'}"
-
-
-@app.get("/sensor/data")
-async def receive_sensor_data():
-    service = SensorService()
-
-    sensor = service.get_by_name()
-    return {"status": sensor.name}
+app.include_router(sensor_controller.router)

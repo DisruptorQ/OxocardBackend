@@ -1,4 +1,7 @@
-from sqlalchemy import desc, func, select
+from datetime import datetime
+from typing import List
+
+from sqlalchemy import asc, desc, func, select
 from sqlalchemy.orm import Session
 
 from oxocardendpoint.database import metadata
@@ -16,6 +19,14 @@ class SensorDataService(BaseService):
             .filter(SensorData.sensor_id == sensor_id)
             .order_by(desc(SensorData.time_stamp))
             .first()
+        )
+
+    def get_all_data_for_day(self, date: datetime) -> List[SensorData]:
+        return (
+            self.session.query(SensorData)
+            .filter(func.date(SensorData.time_stamp) == date.date())
+            .order_by(asc(SensorData.time_stamp))
+            .all()
         )
 
     def get_current_data_all(self):

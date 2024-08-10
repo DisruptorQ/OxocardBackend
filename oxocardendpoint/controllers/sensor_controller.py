@@ -1,5 +1,6 @@
-from datetime import datetime
-from typing import Any, List, Optional
+from datetime import datetime, timedelta
+from itertools import groupby
+from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Response
 from sqlalchemy.orm import Session
@@ -9,6 +10,9 @@ from oxocardendpoint.entities.sensor import Sensor, SensorData
 from oxocardendpoint.models.create_sensor_model import CreateSensorModel
 from oxocardendpoint.models.sensor_data_model import LogSensorDataModel, SensorDataModel
 from oxocardendpoint.models.sensor_model import SensorModel
+from oxocardendpoint.models.value_per_hour_model import (
+    ValuePerHour,
+)
 from oxocardendpoint.services.sensor_data_service import SensorDataService
 from oxocardendpoint.services.sensor_service import SensorService
 
@@ -38,6 +42,71 @@ async def create_sensor(model: CreateSensorModel):
         return SensorModel(id=sensor.id, name=sensor.name)
 
 
+@router.get("/sensor/data/day")
+async def get_sensor_data_for_day(day: datetime):
+    with Session(engine) as session:
+        sensor_data_service = SensorDataService(session)
+
+        sensor_data = sensor_data_service.get_all_data_for_day(day)
+        if len(sensor_data) == 0:
+            return []
+
+        return []
+
+
+@router.get("/sensor/data/day/aggregated")
+async def get_sensor_data_for_day_aggregated(day: datetime):
+    with Session(engine) as session:
+        sensor_data_service = SensorDataService(session)
+
+        sensor_data = sensor_data_service.get_all_data_for_day(day)
+        if len(sensor_data) == 0:
+            return []
+
+        aggregated_values: Dict[str, List[ValuePerHour]] = {}
+
+        for hour in range(24):
+            # Step 1: Get all Data for the given hour
+            sensor_data_of_hour = list(
+                filter(lambda data: data.time_stamp.hour == hour, sensor_data)
+            )
+
+            if len(sensor_data_of_hour) == 0:
+                # No Sensor Data for that hour
+                continue
+
+            # Step 2: Group by name
+            grouped_by_name = groupby(
+                sorted(sensor_data_of_hour, key=lambda data: data.sensor.name),
+                key=lambda data: data.sensor.name,
+            )
+
+            # TODO REMOVE FLOAT PARSING AS SOON AS THE VALUE IS CHANGED IN THE MODEL
+
+            for sensor_name, data_per_hour_iter in grouped_by_name:
+                # Step 3: Special Case:
+                # The sensor for air quality needs to warmup for around 2 minutes. In the mean time, the logged value is -1. Filter those values.
+                filtered_values = list(
+                    filter(lambda data: float(data.value) > 0, data_per_hour_iter)
+                )
+
+                # Step 4: Calculate the average for the given hour
+                average_value = sum(
+                    float(data.value) for data in filtered_values
+                ) / len(filtered_values)
+
+                value_per_hour = ValuePerHour(
+                    time_stamp=day + timedelta(hours=hour), value=average_value
+                )
+
+                if sensor_name not in aggregated_values:
+                    aggregated_values[sensor_name] = [value_per_hour]
+                else:
+                    aggregated_values[sensor_name].append(value_per_hour)
+
+        return aggregated_values
+
+
 @router.get("/sensor/data/current")
 async def get_current_sensor_data(sensor_name: Optional[str] = None):
     with Session(engine) as session:
@@ -58,8 +127,6 @@ async def get_current_sensor_data(sensor_name: Optional[str] = None):
                     )
                 )
             return current_data
-
-        print(f"SENSOR_NAME {sensor_name}")
 
         sensor = sensor_service.get_by_name(name=sensor_name)
         if sensor is None:
